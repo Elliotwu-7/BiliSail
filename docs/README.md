@@ -25,6 +25,8 @@
 | [项目更名](validation/project-renaming.md) | BiliSail／哔帆的命名范围、安装／存储标识与平台验证 |
 | [应用图标](../assets/branding/README.md) | 小电视与船帆角标、保留候选方案、官网参考和平台资源 |
 | [CI/CD 与安装包](validation/ci-cd.md) | GitHub Actions 五端构建、Android 固定签名、Windows 安装包、macOS arm64／Intel x64 DMG、iOS 未签名 IPA、Linux Flatpak／AppImage 与预览 Release 草稿 |
+| [Android x86_64 适配](validation/android-x86_64.md) | ABI 映射、独立 mux、开发包与发布矩阵、检查及未验项 |
+| [Android 车机媒体会话](validation/android-car-media.md) | 标准 MediaSession、XSF/MediaControl 私有桥、媒体按键、31081 设备验证与权限边界 |
 | [iOS 与 Linux 平台接入](validation/ios-linux.md) | iOS 未签名 IPA、Linux Flatpak／AppImage、原生封装、网页登录限制及未验收项 |
 | [近期三项界面修复与发布验收](validation/ui-fixes-release-2026-10-09.md) | 顶部标签跟随、点击控件鼠标保护、滑动封面保留的 Windows 构建与测试 |
 | [macOS 发布启动与安全存储](validation/macos-release-startup.md) | ad-hoc 权限约束、传统 Keychain、同产物启动／跨进程凭据验证与升级验收 |

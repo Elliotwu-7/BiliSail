@@ -1,12 +1,12 @@
 param(
-  [Parameter(Mandatory)][ValidateSet('windows-x64', 'android-arm64', 'macos-arm64', 'macos-x64', 'ios-arm64', 'linux-x64')][string]$Target,
+  [Parameter(Mandatory)][ValidateSet('windows-x64', 'android-arm64', 'android-x86_64', 'macos-arm64', 'macos-x64', 'ios-arm64', 'linux-x64')][string]$Target,
   [string]$MsysRoot = $(if ($env:BILI_MUX_MSYS_ROOT) { $env:BILI_MUX_MSYS_ROOT } else { 'C:\msys64' }),
   [string]$AndroidNdk
 )
 $ErrorActionPreference = 'Stop'
 $repoRoot = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
 $buildScript = Join-Path $repoRoot 'packages/bili_mux/tool/build.sh'
-if ($Target -eq 'android-arm64') {
+if ($Target -in @('android-arm64', 'android-x86_64')) {
   if (!$AndroidNdk) { $AndroidNdk = $env:ANDROID_NDK_HOME }
   if (!$AndroidNdk) {
     $sdkRoot = if ($env:ANDROID_HOME) { $env:ANDROID_HOME } else { $env:ANDROID_SDK_ROOT }

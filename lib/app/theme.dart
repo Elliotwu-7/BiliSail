@@ -10,13 +10,28 @@ abstract final class BiliTheme {
   static ThemeData light({
     AppFontPreference font = AppFontPreference.harmonyOsSans,
     String systemFontFamily = '',
-  }) => _build(Brightness.light, font.resolveFamily(systemFontFamily));
+    double uiScale = 1.0,
+  }) => _build(
+    Brightness.light,
+    font.resolveFamily(systemFontFamily),
+    uiScale: uiScale,
+  );
   static ThemeData dark({
     AppFontPreference font = AppFontPreference.harmonyOsSans,
     String systemFontFamily = '',
-  }) => _build(Brightness.dark, font.resolveFamily(systemFontFamily));
+    double uiScale = 1.0,
+  }) => _build(
+    Brightness.dark,
+    font.resolveFamily(systemFontFamily),
+    uiScale: uiScale,
+  );
 
-  static ThemeData _build(Brightness brightness, String? fontFamily) {
+  static ThemeData _build(
+    Brightness brightness,
+    String? fontFamily, {
+    double uiScale = 1.0,
+  }) {
+    final scale = uiScale.isFinite && uiScale > 0 ? uiScale : 1.0;
     final dark = brightness == Brightness.dark;
     final surface = dark ? const Color(0xFF1C2530) : canvas;
     final foreground = dark ? const Color(0xFFEAEAEA) : ink;
@@ -63,10 +78,38 @@ abstract final class BiliTheme {
       hoverColor: primary.withValues(alpha: 0.045),
       focusColor: primary.withValues(alpha: 0.1),
       splashColor: primary.withValues(alpha: 0.08),
+      iconTheme: IconThemeData(size: 24 * scale),
     );
     final controlShape = RoundedRectangleBorder(
       borderRadius: BorderRadius.circular(10),
     );
+    final baseTextTheme = base.textTheme;
+    TextStyle? scaledText(TextStyle? style) {
+      final current = style;
+      final fontSize = current?.fontSize;
+      return current == null || fontSize == null
+          ? current
+          : current.copyWith(fontSize: fontSize * scale);
+    }
+
+    final scaledTextTheme = baseTextTheme.copyWith(
+      displayLarge: scaledText(baseTextTheme.displayLarge),
+      displayMedium: scaledText(baseTextTheme.displayMedium),
+      displaySmall: scaledText(baseTextTheme.displaySmall),
+      headlineLarge: scaledText(baseTextTheme.headlineLarge),
+      headlineMedium: scaledText(baseTextTheme.headlineMedium),
+      headlineSmall: scaledText(baseTextTheme.headlineSmall),
+      titleLarge: scaledText(baseTextTheme.titleLarge),
+      titleMedium: scaledText(baseTextTheme.titleMedium),
+      titleSmall: scaledText(baseTextTheme.titleSmall),
+      bodyLarge: scaledText(baseTextTheme.bodyLarge),
+      bodyMedium: scaledText(baseTextTheme.bodyMedium),
+      bodySmall: scaledText(baseTextTheme.bodySmall),
+      labelLarge: scaledText(baseTextTheme.labelLarge),
+      labelMedium: scaledText(baseTextTheme.labelMedium),
+      labelSmall: scaledText(baseTextTheme.labelSmall),
+    );
+
     return base.copyWith(
       appBarTheme: AppBarTheme(
         backgroundColor: surface,
@@ -78,8 +121,8 @@ abstract final class BiliTheme {
       navigationRailTheme: NavigationRailThemeData(
         backgroundColor: surface,
         indicatorColor: scheme.primaryContainer,
-        selectedIconTheme: IconThemeData(color: primary),
-        unselectedIconTheme: IconThemeData(color: muted),
+        selectedIconTheme: IconThemeData(color: primary, size: 24 * scale),
+        unselectedIconTheme: IconThemeData(color: muted, size: 24 * scale),
         selectedLabelTextStyle: TextStyle(color: primary),
         unselectedLabelTextStyle: TextStyle(color: muted),
       ),
@@ -136,26 +179,26 @@ abstract final class BiliTheme {
         shape: controlShape,
         side: BorderSide(color: border),
       ),
-      textTheme: base.textTheme.copyWith(
-        headlineMedium: base.textTheme.headlineMedium?.copyWith(
-          fontSize: 24,
+      textTheme: scaledTextTheme.copyWith(
+        headlineMedium: baseTextTheme.headlineMedium?.copyWith(
+          fontSize: 24 * scale,
           fontWeight: FontWeight.w500,
         ),
-        titleLarge: base.textTheme.titleLarge?.copyWith(
-          fontSize: 20,
+        titleLarge: baseTextTheme.titleLarge?.copyWith(
+          fontSize: 20 * scale,
           fontWeight: FontWeight.w500,
         ),
-        titleMedium: base.textTheme.titleMedium?.copyWith(
-          fontSize: 16,
+        titleMedium: baseTextTheme.titleMedium?.copyWith(
+          fontSize: 16 * scale,
           fontWeight: FontWeight.w500,
         ),
-        titleSmall: base.textTheme.titleSmall?.copyWith(
-          fontSize: 14,
+        titleSmall: baseTextTheme.titleSmall?.copyWith(
+          fontSize: 14 * scale,
           fontWeight: FontWeight.w500,
         ),
-        bodyMedium: base.textTheme.bodyMedium?.copyWith(fontSize: 14),
-        bodySmall: base.textTheme.bodySmall?.copyWith(
-          fontSize: 12,
+        bodyMedium: baseTextTheme.bodyMedium?.copyWith(fontSize: 14 * scale),
+        bodySmall: baseTextTheme.bodySmall?.copyWith(
+          fontSize: 12 * scale,
           color: muted,
         ),
       ),

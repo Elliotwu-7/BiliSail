@@ -7,11 +7,24 @@ void main() {
     final configuration = videoDecoderConfiguration(
       isAndroid: true,
       decoding: VideoDecodingMode.automatic,
+      isAndroidX64: false,
     );
     expect(configuration.hwdec, 'mediacodec,auto-safe');
     expect(configuration.androidAttachSurfaceAfterVideoParameters, isFalse);
     expect(configuration.enableHardwareAcceleration, isTrue);
     expect(configuration.vo, isNull);
+  });
+
+  test('Android x86_64 automatic decoding avoids broken GPU and OMX paths', () {
+    final configuration = videoDecoderConfiguration(
+      isAndroid: true,
+      decoding: VideoDecodingMode.automatic,
+      isAndroidX64: true,
+    );
+    expect(configuration.hwdec, 'no');
+    expect(configuration.androidAttachSurfaceAfterVideoParameters, isFalse);
+    expect(configuration.enableHardwareAcceleration, isTrue);
+    expect(configuration.vo, 'gpu-next');
   });
 
   test(
@@ -21,6 +34,7 @@ void main() {
         final configuration = videoDecoderConfiguration(
           isAndroid: isAndroid,
           decoding: VideoDecodingMode.software,
+          isAndroidX64: true,
         );
         expect(configuration.hwdec, 'no');
         expect(configuration.vo, isNull);

@@ -13,22 +13,44 @@ android {
     }
 }
 
-tasks.register('prepareMuxAssets', Copy) {
-    def nativeRoot = file('../native/prebuilt/android-arm64')
-    from(nativeRoot) {
-        include 'libbili_mux.so'
-        into 'jniLibs/arm64-v8a'
-    }
-    from(nativeRoot) {
-        include 'COPYING.LGPLv2.1', 'source.txt', 'configure.log'
-        into 'assets/bili_mux'
-    }
-    into layout.buildDirectory.dir('mux-assets')
-    doFirst {
-        if (!new File(nativeRoot, 'libbili_mux.so').isFile()) {
-            throw new GradleException('Build the MP4 component first: pwsh -File tool/build-download-mux.ps1 -Target android-arm64 -AndroidNdk <NDK 28.2.13676358>')
+def nativeTargets = [
+    [platform: 'android-arm64', directory: 'android-arm64', abi: 'arm64-v8a'],
+    [platform: 'android-x64', directory: 'android-x86_64', abi: 'x86_64'],
+]
+// Flutter calls the x86_64 platform android-x64. Validate in a separate task:
+// Sync would skip doFirst validation when every input is missing (NO-SOURCE).
+def requestedPlatforms = (project.findProperty('target-platform') ?: 'android-arm64').split(',')*.trim()
+def selectedTargets = nativeTargets.findAll { it.platform in requestedPlatforms }
+tasks.register('validateMuxAssets') {
+    doLast {
+        if (selectedTargets.isEmpty()) {
+            throw new GradleException("Unsupported mux target-platform: ${requestedPlatforms.join(',')}")
+        }
+        selectedTargets.each { target ->
+            def nativeRoot = file("../native/prebuilt/${target.directory}")
+            ['libbili_mux.so', 'COPYING.LGPLv2.1', 'source.txt', 'configure.log'].each { asset ->
+                if (!new File(nativeRoot, asset).isFile()) {
+                    throw new GradleException("Missing ${target.abi} mux asset ${asset}. Build first: pwsh -File tool/build-download-mux.ps1 -Target ${target.directory} -AndroidNdk <NDK 28.2.13676358>")
+                }
+            }
         }
     }
+}
+tasks.register('prepareMuxAssets', Sync) {
+    dependsOn 'validateMuxAssets'
+    // Sync removes stale libraries and metadata after switching ABI.
+    selectedTargets.each { target ->
+        def nativeRoot = file("../native/prebuilt/${target.directory}")
+        from(nativeRoot) {
+            include 'libbili_mux.so'
+            into "jniLibs/${target.abi}"
+        }
+        from(nativeRoot) {
+            include 'COPYING.LGPLv2.1', 'source.txt', 'configure.log'
+            into "assets/bili_mux/${target.abi}"
+        }
+    }
+    into layout.buildDirectory.dir('mux-assets')
 }
 android.sourceSets.main.jniLibs.srcDirs = [layout.buildDirectory.dir('mux-assets/jniLibs')]
 android.sourceSets.main.assets.srcDirs = [layout.buildDirectory.dir('mux-assets/assets')]

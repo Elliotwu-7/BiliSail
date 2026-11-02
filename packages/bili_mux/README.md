@@ -1,7 +1,7 @@
 # bili_mux
 
 下载完成后的本地 MP4 / MKV 流复制组件，与 `bili_player` 的 libmpv/FFmpeg 隔离。
-打包目标为 Windows x64、Android arm64、macOS arm64／Intel x64、iOS arm64 和 Linux x64；Linux 同时用于 CI 原生回归。新增 iOS／Linux 应用包的首次远端构建及设备验收见[平台记录](../../docs/validation/ios-linux.md)，Intel macOS 构建状态见 [CI/CD](../../docs/validation/ci-cd.md#macos-dmg-安装)。
+打包目标为 Windows x64、Android arm64／x86_64、macOS arm64／Intel x64、iOS arm64 和 Linux x64；Linux 同时用于 CI 原生回归。Android x86_64 的验收边界见[适配记录](../../docs/validation/android-x86_64.md)；新增 iOS／Linux 应用包的首次远端构建及设备验收见[平台记录](../../docs/validation/ios-linux.md)，Intel macOS 构建状态见 [CI/CD](../../docs/validation/ci-cd.md#macos-dmg-安装)。
 
 ## 原生来源与构建
 
@@ -22,6 +22,7 @@
 # Android：固定 NDK 28.2.13676358，API 24，16 KiB ELF 页对齐。
 # 可从 ANDROID_NDK_HOME、ANDROID_HOME 或 android/local.properties 找到 SDK。
 ./tool/build-download-mux.ps1 -Target android-arm64
+./tool/build-download-mux.ps1 -Target android-x86_64
 
 # macOS：在 Apple Silicon / Xcode 主机执行，最低 macOS 12。
 ./tool/build-download-mux.ps1 -Target macos-arm64
@@ -38,6 +39,7 @@
 
 macOS、iOS、Linux 也可直接执行 `bash packages/bili_mux/tool/build.sh <target>`。
 组件构建完成后按通常方式执行 Flutter 构建。Windows／Linux CMake、Android Gradle 和 Apple CocoaPods 打包对应 DLL/SO/framework；各端随组件保留许可与来源/配置。iOS 与 macOS 使用各自的 framework 构建目录，FFI 按各自的 app bundle 布局加载；Linux 按可执行文件旁的 `lib/libbili_mux.so` 加载，兼容 AppImage 挂载目录与 Flatpak 沙盒。
+Android 两种组件分别保存在 `native/prebuilt/android-arm64` 与 `native/prebuilt/android-x86_64`。Gradle 按 Flutter 的 `target-platform` 选择 ABI，缺少对应组件即失败，并用 Sync 清理另一架构的旧 staging 文件；许可、来源和构建参数位于 APK 的 `assets/bili_mux/<abi>/`。x86_64 应用可用 `flutter build apk --target-platform android-x64 --split-per-abi` 构建；开发包优先使用根目录脚本以保留测试身份和签名校验。
 macOS 的两种架构分别保存在 `native/prebuilt/macos-arm64` 和 `native/prebuilt/macos-x64`，构建后将所选架构复制到同一个 CocoaPods framework 目录；切换架构必须重建组件，并让应用的 Xcode `ARCHS` 与之匹配。发布入口 `tool/build-release.ps1` 自动完成这一流程，生成两份独立 DMG。
 iOS framework 使用扁平布局，`BiliMux`、`Info.plist`、`COPYING.LGPLv2.1`、`source.txt` 和 `configure.log` 均位于根目录；不能创建 macOS 式的 `Resources/`。Apple [打包步骤](tool/package-apple-framework.sh)每次重新生成 CocoaPods 使用的 framework，移除旧构建遗留目录；macOS 继续将许可与来源/配置放在 `Resources/`。无需 Xcode 的目录回归可运行 `bash packages/bili_mux/tool/test-apple-framework.sh`。
 `tool/build-release.ps1` 已自动先构建组件，并在安装包旁生成对应的 `.mux-source.zip`，包含 FFmpeg 原始归档、本项目包装源码与构建说明，便于重建与替换动态组件。

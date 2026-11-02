@@ -101,6 +101,7 @@ import '../features/settings/application/system_fonts_controller.dart';
 import '../features/settings/data/sqlite_settings_repository.dart';
 import 'platform_defaults.dart';
 import '../features/playback/application/playback_viewers_controller.dart';
+import '../features/playback/application/car_media_coordinator.dart';
 
 class AppDependencies {
   AppDependencies._(
@@ -110,6 +111,7 @@ class AppDependencies {
     this.session,
     this.library,
     this.playback,
+    this.carMedia,
     this.playbackVolumeMemory,
     this.window,
     this.sponsorTransport,
@@ -138,6 +140,7 @@ class AppDependencies {
   );
   final SqliteLibraryRepository library;
   final PlaybackManager playback;
+  final CarMediaCoordinator carMedia;
   final PlaybackVolumeMemory playbackVolumeMemory;
   final WindowService window;
   final playbackWindow = DesktopPlaybackWindowController();
@@ -281,6 +284,8 @@ class AppDependencies {
         );
       },
     );
+    final carMedia = CarMediaCoordinator();
+    await carMedia.initialize();
     session = SessionRepository(
       loadAppDevice: () => dependencies.appRecommendationIdentity.deviceId(),
       api: api,
@@ -317,6 +322,7 @@ class AppDependencies {
       session,
       library,
       playback,
+      carMedia,
       playbackVolumeMemory,
       window,
       sponsorTransport,
@@ -533,6 +539,7 @@ class AppDependencies {
           ),
         ),
         playbackManagerProvider.overrideWithValue(playback),
+        carMediaCoordinatorProvider.overrideWithValue(carMedia),
       ],
       child: child,
     );
@@ -548,6 +555,7 @@ class AppDependencies {
       await cardPreviews.close();
       // Flush the final history observation while its account epoch is valid.
       await playback.close();
+      await carMedia.close();
     } finally {
       try {
         // SDK-managed HWNDs must retire while the shared engine and its message

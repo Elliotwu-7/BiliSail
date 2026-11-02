@@ -5,12 +5,16 @@ param(
   [string]$Label = 'optimized',
   [ValidateSet('primary-switch', 'recommendation-updates', 'retained-cards')]
   [string]$Scenario = 'primary-switch',
+  [ValidateSet('android-arm64', 'android-x86_64')]
+  [string]$Target = 'android-arm64',
   [switch]$SkipMuxBuild
 )
 $ErrorActionPreference = 'Stop'
 $repoRoot = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
 . (Join-Path $PSScriptRoot 'android-development.ps1')
 . (Join-Path $PSScriptRoot 'android-signing.ps1')
+. (Join-Path $PSScriptRoot 'android-targets.ps1')
+$buildTarget = Get-AndroidBuildTarget $Target
 
 function Invoke-ValidationCommand([string]$Executable, [string[]]$Parameters) {
   & $Executable @Parameters
@@ -29,28 +33,29 @@ try {
   $powerState = (& $adb -s $DeviceId shell settings get global stay_on_while_plugged_in).Trim()
   Invoke-ValidationCommand $adb @('-s', $DeviceId, 'shell', 'svc', 'power', 'stayon', 'usb')
   Invoke-ValidationCommand $adb @('-s', $DeviceId, 'shell', 'input', 'keyevent', 'KEYCODE_WAKEUP')
-  if (!$SkipMuxBuild) { & (Join-Path $PSScriptRoot 'build-download-mux.ps1') -Target android-arm64 }
+  if (!$SkipMuxBuild) { & (Join-Path $PSScriptRoot 'build-download-mux.ps1') -Target $Target }
   # Always preserve a fresh normal entry point before replacing the APK with a
   # deterministic fixture. All variants share the installed test app's data.
-  & (Join-Path $PSScriptRoot 'build-android-development.ps1') -Mode Release -SkipMuxBuild
-  $restorePackage = Join-Path $repoRoot 'build/development/android-arm64/BiliSail-test-arm64-release.apk'
-  $target = if ($Scenario -eq 'retained-cards') {
+  & (Join-Path $PSScriptRoot 'build-android-development.ps1') -Mode Release -Target $Target -SkipMuxBuild
+  $restorePackage = Join-Path $repoRoot "build/development/$Target/BiliSail-test-$($buildTarget.Architecture)-release.apk"
+  $entryPoint = if ($Scenario -eq 'retained-cards') {
     'integration_test/android_retained_cards_test.dart'
   } elseif ($Scenario -eq 'recommendation-updates') {
     'integration_test/android_recommendation_updates_test.dart'
   } else { 'integration_test/android_primary_switch_test.dart' }
 
   Invoke-ValidationCommand flutter @(
-    'build', 'apk', '--profile', '--target-platform', 'android-arm64', '--split-per-abi',
-    '--target', $target,
+    'build', 'apk', '--profile', '--target-platform', $buildTarget.FlutterPlatform, '--split-per-abi',
+    '--target', $entryPoint,
     "--dart-define=SWITCH_LABEL=$Label",
     $AndroidDevelopmentBuildArgument
   )
   $apk = Join-Path $repoRoot "build/validation/$Scenario-$Label.apk"
   New-Item -ItemType Directory -Force -Path (Split-Path $apk) | Out-Null
-  Copy-Item -LiteralPath 'build/app/outputs/flutter-apk/app-arm64-v8a-profile.apk' -Destination $apk
+  Copy-Item -LiteralPath "build/app/outputs/flutter-apk/app-$($buildTarget.Abi)-profile.apk" -Destination $apk
+  Confirm-AndroidApkNativeLibraries $apk $Target -RequireAot
   $certificate = Confirm-AndroidApkSigning $apk ([pscustomobject]@{ Signing = 'temporary-debug-key' })
-  $pinnedCertificate = (Get-Content -LiteralPath 'build/development/android-arm64/signing-certificate.sha256' -Raw).Trim()
+  $pinnedCertificate = (Get-Content -LiteralPath "build/development/$Target/signing-certificate.sha256" -Raw).Trim()
   if ($certificate -cne $pinnedCertificate) { throw 'Profile and normal development APK signing identities differ.' }
   # Flutter drive can uninstall after a signature mismatch. Fail here first,
   # so neither the production app nor an incompatible validation app is erased.

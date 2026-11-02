@@ -401,8 +401,10 @@ final class _VideoCardState extends State<VideoCard> {
   Widget _menuButton(VideoCardMenu menu, double cardWidth) {
     final actions = menu.actions;
     final tier = _VideoCardWidthTier.fromWidth(cardWidth);
-    final buttonSize = Size.square(tier.menuButtonSize);
-    final progressSize = tier.menuIconSize * .8;
+    final iconScale = (IconTheme.of(context).size ?? 24) / 24;
+    final buttonSize = Size.square(tier.menuButtonSize * iconScale);
+    final menuIconSize = tier.menuIconSize * iconScale;
+    final progressSize = menuIconSize * .8;
     final touchPlatform = switch (Theme.of(context).platform) {
       TargetPlatform.android || TargetPlatform.iOS => true,
       _ => false,
@@ -457,10 +459,10 @@ final class _VideoCardState extends State<VideoCard> {
                   )
                 : Icon(
                     Icons.more_vert,
-                    size: tier.menuIconSize,
+                    size: menuIconSize,
                     semanticLabel: '更多操作',
                   ),
-            iconSize: tier.menuIconSize,
+            iconSize: menuIconSize,
             style: IconButton.styleFrom(
               minimumSize: buttonSize,
               maximumSize: buttonSize,
@@ -483,8 +485,8 @@ final class _VideoCardState extends State<VideoCard> {
                         VideoCardMenuAction.removeWatchLater ||
                         VideoCardMenuAction.removeHistory =>
                           Icons.delete_outline,
-                      }, size: 19),
-                      const SizedBox(width: 10),
+                      }, size: 19 * iconScale),
+                      SizedBox(width: 10 * iconScale),
                       Flexible(
                         child: Text(switch (action) {
                           VideoCardMenuAction.notInterested => '不感兴趣',

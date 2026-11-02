@@ -21,6 +21,7 @@ import '../../../core/presentation/input_scope.dart';
 import '../application/playback_shortcut_controller.dart';
 import '../application/playback_session.dart';
 import '../application/playback_viewers_controller.dart';
+import '../application/car_media_coordinator.dart';
 import '../domain/playback_repository.dart';
 import '../domain/content_playback.dart';
 import 'player_settings_dialog.dart';
@@ -131,13 +132,24 @@ class _PlaybackPanelState extends ConsumerState<PlaybackPanel>
     _displayCompact ??= _isPhoneDisplay;
     final commands = PlaybackPageCommands.maybeOf(context);
     final navigation = PlaybackNavigation.maybeOf(context);
+    final active = WorkspaceActivity.isActive(context);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
         _pageCommands.value = commands;
         _navigation.value = navigation;
+        final carMedia = ref.read(carMediaCoordinatorProvider);
+        if (active) {
+          carMedia?.attach(
+            session: _session,
+            previous: commands?.previousPart ?? _noop,
+            next: commands?.nextPart ?? _noop,
+            canNext: commands?.hasNext ?? false,
+          );
+        } else {
+          carMedia?.detach(_session);
+        }
       }
     });
-    final active = WorkspaceActivity.isActive(context);
     if (_active == active) return;
     _active = active;
     _surfaceReady = false;
@@ -175,6 +187,8 @@ class _PlaybackPanelState extends ConsumerState<PlaybackPanel>
       }
     });
   }
+
+  static void _noop() {}
 
   void _configure() => _session.configureSettings(widget.settings);
 
@@ -271,6 +285,7 @@ class _PlaybackPanelState extends ConsumerState<PlaybackPanel>
     _session.snapshots.removeListener(_onPlaybackCompleted);
     _dismissFullScreen();
     _shortcuts.dispose();
+    ref.read(carMediaCoordinatorProvider)?.detach(_session);
     _session.detach(this);
     _settings.dispose();
     _controlsVisible.dispose();

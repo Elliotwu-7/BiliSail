@@ -9,7 +9,7 @@ on:
         required: false
         default: ''
       enable_android:
-        description: Android arm64 APK
+        description: Android arm64 and x86_64 APKs
         type: boolean
         default: true
       enable_windows:

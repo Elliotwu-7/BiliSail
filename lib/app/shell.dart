@@ -1623,6 +1623,7 @@ final class _BiliAppShellState extends State<BiliAppShell>
     if (!sections.contains(selected)) {
       return _unselectedBottomNavigation(context, sections);
     }
+    final iconScale = (IconTheme.of(context).size ?? 24) / 24;
     return NavigationBar(
       key: const ValueKey('workspace-bottom-navigation'),
       animationDuration: MediaQuery.disableAnimationsOf(context)
@@ -1648,10 +1649,13 @@ final class _BiliAppShellState extends State<BiliAppShell>
         for (final item in sections)
           NavigationDestination(
             key: ValueKey('workspace-bottom-${item.name}'),
-            icon: Icon(_sectionIcon(item), size: _bottomNavigationIconSize),
+            icon: Icon(
+              _sectionIcon(item),
+              size: _bottomNavigationIconSize * iconScale,
+            ),
             selectedIcon: Icon(
               _sectionIcon(item, selected: true),
-              size: _bottomNavigationIconSize,
+              size: _bottomNavigationIconSize * iconScale,
             ),
             label: item.label,
           ),
@@ -1666,6 +1670,7 @@ final class _BiliAppShellState extends State<BiliAppShell>
     final theme = Theme.of(context);
     final colors = theme.colorScheme;
     final barTheme = NavigationBarTheme.of(context);
+    final iconScale = (IconTheme.of(context).size ?? 24) / 24;
     return Material(
       key: const ValueKey('workspace-bottom-navigation'),
       color: barTheme.backgroundColor ?? colors.surface,
@@ -1701,7 +1706,8 @@ final class _BiliAppShellState extends State<BiliAppShell>
                                     ),
                                     Icon(
                                       _sectionIcon(section),
-                                      size: _bottomNavigationIconSize,
+                                      size:
+                                          _bottomNavigationIconSize * iconScale,
                                       color: colors.onSurfaceVariant,
                                     ),
                                   ],

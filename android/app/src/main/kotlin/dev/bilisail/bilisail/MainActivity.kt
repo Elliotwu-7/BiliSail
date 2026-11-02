@@ -10,6 +10,7 @@ class MainActivity : FlutterActivity() {
     private var imageExport: ImageExportHandler? = null
     private var windowBrightness: WindowBrightnessHandler? = null
     private var mobileWindow: MobileWindowHandler? = null
+    private var carMedia: CarMediaBridge? = null
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
@@ -17,6 +18,7 @@ class MainActivity : FlutterActivity() {
         imageExport = ImageExportHandler(this, flutterEngine.dartExecutor.binaryMessenger)
         windowBrightness = WindowBrightnessHandler(this, flutterEngine.dartExecutor.binaryMessenger)
         mobileWindow = MobileWindowHandler(this, flutterEngine.dartExecutor.binaryMessenger)
+        carMedia = CarMediaBridge(this, flutterEngine.dartExecutor.binaryMessenger)
     }
 
     override fun onResume() {
@@ -53,6 +55,8 @@ class MainActivity : FlutterActivity() {
     override fun cleanUpFlutterEngine(flutterEngine: FlutterEngine) {
         mobileWindow?.close()
         mobileWindow = null
+        carMedia?.close()
+        carMedia = null
         windowBrightness?.close()
         windowBrightness = null
         downloadStorage?.close()

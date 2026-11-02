@@ -1,3 +1,5 @@
+import 'dart:ffi';
+
 import 'package:media_kit_video/media_kit_video.dart' as mkv;
 
 import 'player_contract.dart';
@@ -8,14 +10,23 @@ import 'player_contract.dart';
 mkv.VideoControllerConfiguration videoDecoderConfiguration({
   required bool isAndroid,
   required VideoDecodingMode decoding,
-}) => mkv.VideoControllerConfiguration(
-  // Software decoding still uses the GPU video output. Desktop defaults remain
-  // owned by the SDK; Android follows PiliPlus's MediaCodec preference order.
-  hwdec: decoding == VideoDecodingMode.software
-      ? 'no'
-      : isAndroid
-      ? 'mediacodec,auto-safe'
-      : null,
-  androidAttachSurfaceAfterVideoParameters:
-      isAndroid && decoding == VideoDecodingMode.automatic ? false : null,
-);
+  bool? isAndroidX64,
+}) {
+  final x64 = isAndroid && (isAndroidX64 ?? Abi.current() == Abi.androidX64);
+  final useX64Fallback = x64 && decoding == VideoDecodingMode.automatic;
+
+  return mkv.VideoControllerConfiguration(
+    // Some Android x86_64 vehicle builds expose an incomplete EGL interface to
+    // the legacy GPU output. gpu-next also supports Vulkan and avoids that path.
+    vo: useX64Fallback ? 'gpu-next' : null,
+    // Their vendor MediaCodec OMX implementation also crashes while releasing
+    // buffers. Keep x86_64 on software decoding until the driver is validated.
+    hwdec: decoding == VideoDecodingMode.software || useX64Fallback
+        ? 'no'
+        : isAndroid
+        ? 'mediacodec,auto-safe'
+        : null,
+    androidAttachSurfaceAfterVideoParameters:
+        isAndroid && decoding == VideoDecodingMode.automatic ? false : null,
+  );
+}

@@ -1,6 +1,6 @@
 # GitHub Actions CI/CD 与安装包
 
-更新日期：2026-10-29。配置覆盖 Android arm64、Windows x64、macOS arm64／Intel x64、iOS arm64、Linux x64；iOS／Linux 的远端构建进展与设备未验项详见[接入记录](ios-linux.md)，Intel macOS 的新增配置与验证边界见下文。本地验证结果与远端、设备未测项分别记录。此流程交付预览构建，不表示各平台验收或 M5 正式发行完成。
+更新日期：2026-10-30。配置覆盖 Android arm64／x86_64、Windows x64、macOS arm64／Intel x64、iOS arm64、Linux x64；Android x86_64 的配置及未验项见[适配记录](android-x86_64.md)。iOS／Linux 的远端构建进展与设备未验项详见[接入记录](ios-linux.md)，Intel macOS 的新增配置与验证边界见下文。本地验证结果与远端、设备未测项分别记录。此流程交付预览构建，不表示各平台验收或 M5 正式发行完成。
 
 ## 入口与分工
 
@@ -12,7 +12,7 @@
 | 任务 | Runner | 产物与边界 |
 | --- | --- | --- |
 | 版本解析、静态检查、根测试分片与包测试 | `ubuntu-24.04` | 无需真实账号；独立 mux 任务覆盖封装原生测试，不自动运行在线或原生播放集成测试 |
-| Android | `ubuntu-24.04`，Temurin JDK 17 | 仅 arm64 的 release APK；正常构建复用固定 keystore，PR 使用临时预览签名 |
+| Android | `ubuntu-24.04`，Temurin JDK 17 | arm64 与 x86_64 独立 release APK；正常构建复用固定 keystore，PR 使用临时预览签名 |
 | Windows | `windows-2022`，Visual Studio C++ / Windows SDK / .NET 8 / WiX 6.0.2 | 同时提供 x64 MSIX、MSI 和 EXE 安装包；全部包含完整原生 DLL/data 及 VC++ runtime |
 | macOS | `macos-15`，Apple Silicon / Xcode | arm64 DMG；先验证签名／最终权限、同一 Release 应用首帧和跨进程 Keychain 读写删除，再由 `hdiutil` 打包校验；仅 ad-hoc 签名，未 notarize |
 | macOS Intel | `macos-15-intel`，Intel x64 / Xcode | x64 DMG；复用相同的签名、首帧、Keychain 和镜像校验门槛 |
@@ -40,7 +40,7 @@ Dart 3.13.5 内置的 [Pub 源码](https://github.com/dart-lang/pub/blob/ec276d1
 
 ## 版本与产物
 
-手动输入版本使用 Flutter 的 `x.y.z+N`，例如 `0.1.0+1`；留空取根 `pubspec.yaml`。脚本通过 `--build-name` 和 `--build-number` 传入，不改源码版本或锁文件。Windows MSIX 与 EXE Bundle 映射为 `x.y.z.N`；MSI 使用三段 `x.y.(z*1000+N)`，例如 `0.3.0+1` → `0.3.1`、`0.3.0+2` → `0.3.2`、`0.3.1+1` → `0.3.1001`。选择 Windows 时要求 `x/y <= 255`、`0 <= N <= 999`、`z*1000+N <= 65535`，版本解析阶段即拒绝超限值。MSI 只比较前三段，不能直接采用 MSIX 的第四段构建号；依据 [Microsoft ProductVersion](https://learn.microsoft.com/en-us/windows/win32/msi/productversion)。Android 保留 arm64 split APK，但在 `android/gradle.properties` 设置 `force-version-code-ignoring-abi=true`，关闭 Flutter 的 ABI 偏移。Gradle 从 `--build-name x.y.z` 与原始 `--build-number N` 计算 `versionCode = x*10000 + y*1000 + z*100 + N`，例如 `0.5.5+2` → `5502`，不再额外加 2000，也不要将已编码值传给 `--build-number`。CI 与打包脚本共用 [Android 版本校验](../../tool/android-version.ps1)，要求 `0 <= x <= 209999`、`0 <= y,z <= 9`、`0 <= N <= 99`，禁止前导零及最终编码为零（`0.0.0+0`）；Gradle 独立校验相同范围，直接 Flutter 构建也不能绕过数值限制。构建号满 99 后提升补丁号并重置构建号；补丁/次版本满 9 后相应提升上一段，避免进位碰撞。最大编码为 2099999999，低于 Android 上限 2100000000。打包后使用 SDK `aapt dump badging` 校验实际 APK 的 applicationId、versionName 和 versionCode；仅校验成功才将编码写入 metadata 并生成校验文件。MSIX 升级要求递增包版本并保持 identity/publisher。已有同名 tag 时拒绝附加新构建，重跑草稿遇到冲突时也需使用新版本或显式处理旧草稿。
+手动输入版本使用 Flutter 的 `x.y.z+N`，例如 `0.1.0+1`；留空取根 `pubspec.yaml`。脚本通过 `--build-name` 和 `--build-number` 传入，不改源码版本或锁文件。Windows MSIX 与 EXE Bundle 映射为 `x.y.z.N`；MSI 使用三段 `x.y.(z*1000+N)`，例如 `0.3.0+1` → `0.3.1`、`0.3.0+2` → `0.3.2`、`0.3.1+1` → `0.3.1001`。选择 Windows 时要求 `x/y <= 255`、`0 <= N <= 999`、`z*1000+N <= 65535`，版本解析阶段即拒绝超限值。MSI 只比较前三段，不能直接采用 MSIX 的第四段构建号；依据 [Microsoft ProductVersion](https://learn.microsoft.com/en-us/windows/win32/msi/productversion)。Android 为 arm64 与 x86_64 分别生成 split APK，但在 `android/gradle.properties` 设置 `force-version-code-ignoring-abi=true`，关闭 Flutter 的 ABI 偏移。Gradle 从 `--build-name x.y.z` 与原始 `--build-number N` 计算 `versionCode = x*10000 + y*1000 + z*100 + N`，例如 `0.5.5+2` → `5502`，不再额外加 2000，也不要将已编码值传给 `--build-number`。CI 与打包脚本共用 [Android 版本校验](../../tool/android-version.ps1)，要求 `0 <= x <= 209999`、`0 <= y,z <= 9`、`0 <= N <= 99`，禁止前导零及最终编码为零（`0.0.0+0`）；Gradle 独立校验相同范围，直接 Flutter 构建也不能绕过数值限制。构建号满 99 后提升补丁号并重置构建号；补丁/次版本满 9 后相应提升上一段，避免进位碰撞。最大编码为 2099999999，低于 Android 上限 2100000000。打包后使用 SDK `aapt dump badging` 校验实际 APK 的 applicationId、versionName 和 versionCode；仅校验成功才将编码写入 metadata 并生成校验文件。MSIX 升级要求递增包版本并保持 identity/publisher。已有同名 tag 时拒绝附加新构建，重跑草稿遇到冲突时也需使用新版本或显式处理旧草稿。
 
 每个平台的 `artifacts/<target>/release/` 中包含：
 
@@ -108,13 +108,13 @@ PR 不接收长期签名 Secrets，仅通过 `-AndroidPreviewSigning` 显式启�
 ./tool/build-android-development.ps1 -Mode Release -Install -DeviceId <adb-device-id>
 ```
 
-[开发构建入口](../../tool/build-android-development.ps1) 默认准备 Android arm64 mux，使用普通 `lib/main.dart`，开启 `bilisailDevelopmentBuild=true`，生成真正的 Release/AOT APK。Debug/Profile 也复用相同包名、显示名称和本机 debug keystore；开发 Release 仅供本地测试，不接收正式签名密钥。保留 `%USERPROFILE%/.android/debug.keystore`，脚本记录证书指纹，避免更换签名后丢失覆盖升级能力。
+[开发构建入口](../../tool/build-android-development.ps1) 默认准备 Android arm64 mux，可用 `-Target android-x86_64` 选择 x86_64，使用普通 `lib/main.dart`，开启 `bilisailDevelopmentBuild=true`，生成真正的 Release/AOT APK。Debug/Profile 也复用相同包名、显示名称和本机 debug keystore；开发 Release 仅供本地测试，不接收正式签名密钥。保留 `%USERPROFILE%/.android/debug.keystore`，脚本记录证书指纹，避免更换签名后丢失覆盖升级能力。
 
 该开关默认关闭，CI 和 Release 工作流继续调用原有 `tool/build-release.ps1`，不传开发别名参数；正式产物的 manifest 校验只接受 `dev.bilisail.bilisail`，拒绝 `.test` 包名。预览签名仍只改变签名，不开启开发别名。
 
 提交前补充实测：不传开发别名参数，使用 CI 的 PR 预览签名模式构建 arm64 Release，实际包名为 `dev.bilisail.bilisail`、名称为 `BiliSail`、versionCode 为 `12104`，签名校验通过且不可调试。关闭预览签名后，缺少正式密钥的 Release 仍在 `preReleaseBuild` 按原规则失败。CI/Release 工作流与正式打包脚本未修改；本次没有触发远端 CI，也没有将该正式身份验证包安装到设备。日志为 `build/validation/ci-identity-default-build.log` 和 `ci-identity-signing-guard.log`。
 
-输出固定为 `build/development/android-arm64/BiliSail-test-arm64-release.apk`，附带 SHA-256 和 JSON 元信息。打包使用 arm64 split，并检查实际包名、名称、版本、签名、ABI 和 AOT 内容；Release 不可调试。只用 `adb install -r` 安装，失败即停止，不自动卸载、清数据或强制降级。构建保留 Flutter 的默认 pub 阶段，以重新生成匹配模式的插件注册文件；不能使用 `--no-pub` 留下 dev-only 注册。
+默认输出为 `build/development/android-arm64/BiliSail-test-arm64-release.apk`，选择 x86_64 时输出为 `build/development/android-x86_64/BiliSail-test-x86_64-release.apk`，均附带 SHA-256 和 JSON 元信息。打包使用对应架构的 split APK，并检查实际包名、名称、版本、签名、ABI 和 AOT 内容；Release 不可调试。只用 `adb install -r` 安装，失败即停止，不自动卸载、清数据或强制降级。构建保留 Flutter 的默认 pub 阶段，以重新生成匹配模式的插件注册文件；不能使用 `--no-pub` 留下 dev-only 注册。
 
 [底栏性能基准](../../tool/test-android-primary-switch.ps1) 同样使用此身份。脚本先保留普通入口的开发 Release，再安装 Profile fixture；`flutter drive --keep-app-running` 防止驱动默认卸载应用，并在 `finally` 中覆盖恢复普通 Release 入口。临时 USB 常亮设置也在结束后还原。[身份检查](../../tool/test-android-development.ps1) 覆盖错误包名、名称、可调试 Release 等拒绝行为，并纳入根检查。
 

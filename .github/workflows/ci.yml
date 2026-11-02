@@ -116,7 +116,10 @@ jobs:
             Get-AndroidVersionCode $version | Out-Null
           }
           $platforms = @(
-            if ($env:ENABLE_ANDROID -eq 'true') { @{ target = 'android-arm64'; runner = 'ubuntu-24.04'; arch = 'x64' } }
+            if ($env:ENABLE_ANDROID -eq 'true') {
+              @{ target = 'android-arm64'; runner = 'ubuntu-24.04'; arch = 'x64' }
+              @{ target = 'android-x86_64'; runner = 'ubuntu-24.04'; arch = 'x64' }
+            }
             if ($env:ENABLE_WINDOWS -eq 'true') { @{ target = 'windows-x64'; runner = 'windows-2022'; arch = 'x64' } }
             if ($env:ENABLE_MACOS -eq 'true') {
               @{ target = 'macos-arm64'; runner = 'macos-15'; arch = 'arm64' }
@@ -167,6 +170,7 @@ jobs:
         run: |
           python3 -m unittest discover -s tool -p 'test_linux_*.py'
           python3 -m unittest discover -s tool -p 'test_apple_*.py'
+          python3 -m unittest discover -s tool -p 'test_android_*.py'
           ruby -c ios/Podfile
           ruby -c macos/Podfile
           ruby -c tool/media-kit-apple-pods.rb
@@ -252,7 +256,7 @@ jobs:
         with:
           persist-credentials: false
       - name: Set up Java for Android
-        if: matrix.target == 'android-arm64'
+        if: startsWith(matrix.target, 'android-')
         uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
         with:
           distribution: temurin
@@ -286,7 +290,7 @@ jobs:
           BILI_MUX_MSYS_ROOT: ${{ steps.windows-mux.outputs.msys2-location }}
         run: ./tool/setup-windows-native-tar.ps1 -MsysRoot $env:BILI_MUX_MSYS_ROOT
       - name: Set up the Android mux compiler
-        if: matrix.target == 'android-arm64'
+        if: startsWith(matrix.target, 'android-')
         shell: bash
         run: |
           "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" 'ndk;28.2.13676358'
@@ -350,12 +354,12 @@ jobs:
           BUILD_TARGET: ${{ matrix.target }}
           BUILD_VERSION: ${{ needs.prepare.outputs.version }}
           BILI_MUX_MSYS_ROOT: ${{ steps.windows-mux.outputs.msys2-location }}
-          ANDROID_PREVIEW_SIGNING: ${{ matrix.target == 'android-arm64' && github.event_name == 'pull_request' }}
-          ANDROID_KEYSTORE_BASE64: ${{ matrix.target == 'android-arm64' && github.event_name != 'pull_request' && secrets.ANDROID_KEYSTORE_BASE64 || '' }}
-          ANDROID_KEYSTORE_PASSWORD: ${{ matrix.target == 'android-arm64' && github.event_name != 'pull_request' && secrets.ANDROID_KEYSTORE_PASSWORD || '' }}
-          ANDROID_KEY_ALIAS: ${{ matrix.target == 'android-arm64' && github.event_name != 'pull_request' && secrets.ANDROID_KEY_ALIAS || '' }}
-          ANDROID_KEY_PASSWORD: ${{ matrix.target == 'android-arm64' && github.event_name != 'pull_request' && secrets.ANDROID_KEY_PASSWORD || '' }}
-          ANDROID_SIGNING_CERTIFICATE_SHA256: ${{ matrix.target == 'android-arm64' && vars.ANDROID_SIGNING_CERTIFICATE_SHA256 || '' }}
+          ANDROID_PREVIEW_SIGNING: ${{ startsWith(matrix.target, 'android-') && github.event_name == 'pull_request' }}
+          ANDROID_KEYSTORE_BASE64: ${{ startsWith(matrix.target, 'android-') && github.event_name != 'pull_request' && secrets.ANDROID_KEYSTORE_BASE64 || '' }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ startsWith(matrix.target, 'android-') && github.event_name != 'pull_request' && secrets.ANDROID_KEYSTORE_PASSWORD || '' }}
+          ANDROID_KEY_ALIAS: ${{ startsWith(matrix.target, 'android-') && github.event_name != 'pull_request' && secrets.ANDROID_KEY_ALIAS || '' }}
+          ANDROID_KEY_PASSWORD: ${{ startsWith(matrix.target, 'android-') && github.event_name != 'pull_request' && secrets.ANDROID_KEY_PASSWORD || '' }}
+          ANDROID_SIGNING_CERTIFICATE_SHA256: ${{ startsWith(matrix.target, 'android-') && vars.ANDROID_SIGNING_CERTIFICATE_SHA256 || '' }}
           MSIX_CERTIFICATE_BASE64: ${{ matrix.target == 'windows-x64' && github.event_name != 'pull_request' && secrets.MSIX_CERTIFICATE_BASE64 || '' }}
           MSIX_CERTIFICATE_PASSWORD: ${{ matrix.target == 'windows-x64' && github.event_name != 'pull_request' && secrets.MSIX_CERTIFICATE_PASSWORD || '' }}
         run: ./tool/build-release.ps1 -Target $env:BUILD_TARGET -Version $env:BUILD_VERSION -AndroidPreviewSigning:($env:ANDROID_PREVIEW_SIGNING -eq 'true')

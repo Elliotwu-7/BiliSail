@@ -8,7 +8,7 @@ if [[ "${OSTYPE:-}" == msys* || "${OSTYPE:-}" == mingw* ]]; then
   [[ -x "$make_tool" ]] || { echo 'Install the MSYS2 make package in this MSYS root' >&2; exit 1; }
 fi
 
-target="${1:?usage: build.sh windows-x64|android-arm64|macos-arm64|macos-x64|ios-arm64|linux-x64}"
+target="${1:?usage: build.sh windows-x64|android-arm64|android-x86_64|macos-arm64|macos-x64|ios-arm64|linux-x64}"
 package_dir="$(cd "$(dirname "$0")/.." && pwd)"
 repo_dir="$(cd "$package_dir/../.." && pwd)"
 cache="$repo_dir/build/download_mux"
@@ -48,7 +48,7 @@ case "$target" in
     link_flags+=(-static -Wl,--exclude-all-symbols)
     output_name=bili_mux.dll
     ;;
-  android-arm64)
+  android-arm64|android-x86_64)
     ndk="${ANDROID_NDK_HOME:?Set ANDROID_NDK_HOME to NDK 28.2.13676358}"
     # Convert paths only at the shell boundary on a Windows host.
     if command -v cygpath >/dev/null; then ndk="$(cygpath -u "$ndk")"; fi
@@ -63,12 +63,18 @@ case "$target" in
     cc="$toolchain/clang"
     cxx="$toolchain/clang++"
     strip_tool="$toolchain/llvm-strip"
-    android_flags="--target=aarch64-linux-android24 --sysroot=$ndk/toolchains/llvm/prebuilt/$host/sysroot"
-    configure_flags+=(--target-os=android --arch=aarch64 --enable-cross-compile
+    android_arch=aarch64
+    android_target=aarch64-linux-android24
+    if [[ "$target" == android-x86_64 ]]; then
+      android_arch=x86_64
+      android_target=x86_64-linux-android24
+    fi
+    android_flags="--target=$android_target --sysroot=$ndk/toolchains/llvm/prebuilt/$host/sysroot"
+    configure_flags+=(--target-os=android "--arch=$android_arch" --enable-cross-compile
       --disable-mediacodec --disable-jni
       "--cc=$cc" "--cxx=$cxx" "--ar=$toolchain/llvm-ar" "--ranlib=$toolchain/llvm-ranlib"
       "--extra-cflags=$android_flags" "--extra-ldflags=$android_flags")
-    cxx_flags+=(--target=aarch64-linux-android24 "--sysroot=$ndk/toolchains/llvm/prebuilt/$host/sysroot")
+    cxx_flags+=("--target=$android_target" "--sysroot=$ndk/toolchains/llvm/prebuilt/$host/sysroot")
     # 16 KiB page alignment is required on recent Android devices.
     link_flags+=(-static-libstdc++ -Wl,-z,max-page-size=16384
       "-Wl,--version-script=$package_dir/native/exports.map" -Wl,-Bsymbolic)

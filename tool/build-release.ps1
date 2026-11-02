@@ -1,5 +1,5 @@
 param(
-  [Parameter(Mandatory)][ValidateSet('android-arm64', 'windows-x64', 'macos-arm64', 'macos-x64', 'ios-arm64', 'linux-x64')][string]$Target,
+  [Parameter(Mandatory)][ValidateSet('android-arm64', 'android-x86_64', 'windows-x64', 'macos-arm64', 'macos-x64', 'ios-arm64', 'linux-x64')][string]$Target,
   [Parameter(Mandatory)][string]$Version,
   [switch]$AndroidPreviewSigning
 )
@@ -8,6 +8,7 @@ $ErrorActionPreference = 'Stop'
 $repoRoot = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
 . (Join-Path $PSScriptRoot 'android-signing.ps1')
 . (Join-Path $PSScriptRoot 'android-version.ps1')
+. (Join-Path $PSScriptRoot 'android-targets.ps1')
 . (Join-Path $PSScriptRoot 'windows-installers.ps1')
 . (Join-Path $PSScriptRoot 'windows-msix-identity.ps1')
 . (Join-Path $PSScriptRoot 'macos-release-validation.ps1')
@@ -134,7 +135,8 @@ if ($Version -cnotmatch '^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)\+(0|[1-9]\d*)
 $buildName, $buildNumber = $Version.Split('+')
 $isMacOSTarget = $Target -in @('macos-arm64', 'macos-x64')
 $macosArch = if ($Target -eq 'macos-arm64') { 'arm64' } elseif ($Target -eq 'macos-x64') { 'x86_64' } else { $null }
-$androidVersionCode = if ($Target -eq 'android-arm64') { Get-AndroidVersionCode $Version } else { $null }
+$isAndroidTarget = $Target -in @('android-arm64', 'android-x86_64')
+$androidVersionCode = if ($isAndroidTarget) { Get-AndroidVersionCode $Version } else { $null }
 if ($Target -eq 'windows-x64' -and @(($Version -split '[.+]') | Where-Object { [long]$_ -gt 65535 }).Count) {
   throw 'MSIX version components must be at most 65535.'
 }
@@ -163,10 +165,10 @@ $androidCertificateSha256 = $null
 $macosValidation = $null
 Push-Location $repoRoot
 try {
-  if ($AndroidPreviewSigning -and $Target -ne 'android-arm64') {
+  if ($AndroidPreviewSigning -and !$isAndroidTarget) {
     throw 'AndroidPreviewSigning is only valid for Android packages.'
   }
-  if ($Target -eq 'android-arm64') {
+  if ($isAndroidTarget) {
     $androidSigning = Initialize-AndroidSigning -Preview:$AndroidPreviewSigning
   }
   # Finish SDK bootstrap before capturing the machine-readable version.
@@ -264,15 +266,12 @@ try {
       }
       $signing = 'unsigned-sha256'
     }
-    'android-arm64' {
-      Invoke-BuildCommand flutter (@('build', 'apk', '--target-platform', 'android-arm64', '--split-per-abi') + $versionArgs)
+    { $_ -in @('android-arm64', 'android-x86_64') } {
+      $buildTarget = Get-AndroidBuildTarget $Target
+      Invoke-BuildCommand flutter (@('build', 'apk', '--target-platform', $buildTarget.FlutterPlatform, '--split-per-abi') + $versionArgs)
       $package = Join-Path $releaseDir "$name.apk"
-      Copy-Item -LiteralPath 'build/app/outputs/flutter-apk/app-arm64-v8a-release.apk' -Destination $package
-      $apk = [System.IO.Compression.ZipFile]::OpenRead($package)
-      try {
-        $abis = @($apk.Entries.FullName | Where-Object { $_ -match '^lib/' } | ForEach-Object { $_.Split('/')[1] } | Sort-Object -Unique)
-        if ($abis.Count -ne 1 -or $abis[0] -ne 'arm64-v8a') { throw 'APK contains unexpected native ABIs.' }
-      } finally { $apk.Dispose() }
+      Copy-Item -LiteralPath "build/app/outputs/flutter-apk/app-$($buildTarget.Abi)-release.apk" -Destination $package
+      Confirm-AndroidApkNativeLibraries $package $Target -RequireAot
       $androidVersionCode = Confirm-AndroidApkVersion $package $Version
       Write-Output "Verified APK manifest: versionName=$buildName, versionCode=$androidVersionCode"
       $androidCertificateSha256 = Confirm-AndroidApkSigning $package $androidSigning
@@ -359,6 +358,7 @@ try {
     sourceRevision = $revision
     sourceDirty = $sourceDirty
     androidVersionCode = $androidVersionCode
+    androidAbi = if ($isAndroidTarget) { $buildTarget.Abi } else { $null }
     androidSigningCertificateSha256 = $androidCertificateSha256
     flutterVersion = $sdk.frameworkVersion
     flutterRevision = $sdk.frameworkRevision

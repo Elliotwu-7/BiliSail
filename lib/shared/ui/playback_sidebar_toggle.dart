@@ -15,22 +15,25 @@ class PlaybackSidebarToggle extends StatelessWidget {
   final VoidCallback onPressed;
 
   @override
-  Widget build(BuildContext context) => Material(
-    type: MaterialType.transparency,
-    child: IconButton(
-      tooltip: tooltip,
-      onPressed: onPressed,
-      style: IconButton.styleFrom(
-        foregroundColor: Colors.white,
-        backgroundColor: Colors.black45,
-        fixedSize: size,
-        minimumSize: Size.zero,
-        padding: EdgeInsets.zero,
-        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-        visualDensity: VisualDensity.standard,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+  Widget build(BuildContext context) {
+    final iconScale = (IconTheme.of(context).size ?? 24) / 24;
+    return Material(
+      type: MaterialType.transparency,
+      child: IconButton(
+        tooltip: tooltip,
+        onPressed: onPressed,
+        style: IconButton.styleFrom(
+          foregroundColor: Colors.white,
+          backgroundColor: Colors.black45,
+          fixedSize: size * iconScale,
+          minimumSize: Size.zero,
+          padding: EdgeInsets.zero,
+          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          visualDensity: VisualDensity.standard,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+        ),
+        icon: Icon(icon, size: 24 * iconScale),
       ),
-      icon: Icon(icon),
-    ),
-  );
+    );
+  }
 }

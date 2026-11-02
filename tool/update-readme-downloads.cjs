@@ -6,6 +6,7 @@ const downloadGroups = [
     ['MSIX', 'windows-x64.msix'], ['证书 CER', 'windows-x64.cer'],
   ]],
   ['Android arm64', [['APK', 'android-arm64.apk']]],
+  ['Android x86_64', [['APK', 'android-x86_64.apk']]],
   ['macOS arm64 / Intel x64', [
     ['Apple Silicon DMG', 'macos-arm64.dmg'], ['Intel x64 DMG', 'macos-x64.dmg'],
   ]],
