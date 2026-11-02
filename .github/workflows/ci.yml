@@ -29,10 +29,6 @@ on:
         description: Linux x64 Flatpak / AppImage
         type: boolean
         default: true
-      skip_checks:
-        description: Skip lint and tests for a signed build-only run
-        type: boolean
-        default: false
   workflow_call:
     inputs:
       version:
@@ -145,7 +141,6 @@ jobs:
 
   lint:
     name: Format and analyze
-    if: ${{ !inputs.skip_checks }}
     needs: prepare
     runs-on: ubuntu-24.04
     timeout-minutes: 30
@@ -187,7 +182,6 @@ jobs:
 
   root-tests:
     name: Root app tests (shard ${{ matrix.shard }})
-    if: ${{ !inputs.skip_checks }}
     needs: prepare
     runs-on: ubuntu-24.04
     timeout-minutes: 30
@@ -211,7 +205,6 @@ jobs:
 
   package-tests:
     name: Package tests
-    if: ${{ !inputs.skip_checks }}
     needs: prepare
     runs-on: ubuntu-24.04
     timeout-minutes: 15
@@ -240,16 +233,11 @@ jobs:
       - name: Require every check job to pass
         shell: bash
         env:
-          SKIP_CHECKS: ${{ inputs.skip_checks }}
           LINT_RESULT: ${{ needs.lint.result }}
           ROOT_TEST_RESULT: ${{ needs.root-tests.result }}
           PACKAGE_TEST_RESULT: ${{ needs.package-tests.result }}
           MUX_TEST_RESULT: ${{ needs.native-mux.result }}
         run: |
-          if [[ "$SKIP_CHECKS" == true ]]; then
-            echo "Checks skipped for the explicitly requested build-only run."
-            exit 0
-          fi
           if [[ "$LINT_RESULT" != success || "$ROOT_TEST_RESULT" != success || "$PACKAGE_TEST_RESULT" != success || "$MUX_TEST_RESULT" != success ]]; then
             echo "::error::Checks did not all pass: lint=$LINT_RESULT root=$ROOT_TEST_RESULT packages=$PACKAGE_TEST_RESULT mux=$MUX_TEST_RESULT"
             exit 1
