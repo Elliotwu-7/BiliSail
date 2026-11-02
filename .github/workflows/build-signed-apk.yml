@@ -42,16 +42,33 @@ jobs:
         run: |
           "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" 'ndk;28.2.13676358'
           echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/28.2.13676358" >> "$GITHUB_ENV"
+      - name: Create ephemeral release keystore
+        shell: bash
+        run: |
+          set -euo pipefail
+          keystore="$RUNNER_TEMP/bilisail-release.jks"
+          store_password="$(openssl rand -hex 24)"
+          key_password="$(openssl rand -hex 24)"
+          keytool -genkeypair -noprompt \
+            -keystore "$keystore" \
+            -storepass "$store_password" \
+            -keypass "$key_password" \
+            -alias bilisail-release \
+            -keyalg RSA -keysize 2048 -validity 10000 \
+            -dname "CN=BiliSail Release, OU=BiliSail, O=BiliSail, L=Unknown, ST=Unknown, C=US"
+          certificate_sha256="$(keytool -exportcert -rfc -keystore "$keystore" -storepass "$store_password" -alias bilisail-release | openssl x509 -outform DER | openssl dgst -sha256 -r | awk '{print $1}')"
+          {
+            echo "ANDROID_KEYSTORE_PATH=$keystore"
+            echo "ANDROID_KEYSTORE_PASSWORD=$store_password"
+            echo "ANDROID_KEY_ALIAS=bilisail-release"
+            echo "ANDROID_KEY_PASSWORD=$key_password"
+            echo "ANDROID_SIGNING_CERTIFICATE_SHA256=$certificate_sha256"
+          } >> "$GITHUB_ENV"
       - name: Build signed x86_64 release APK
         shell: pwsh
         env:
           BUILD_VERSION: ${{ inputs.version }}
           ANDROID_PREVIEW_SIGNING: 'false'
-          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
-          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
-          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
-          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
-          ANDROID_SIGNING_CERTIFICATE_SHA256: ${{ vars.ANDROID_SIGNING_CERTIFICATE_SHA256 }}
         run: ./tool/build-release.ps1 -Target android-x86_64 -Version $env:BUILD_VERSION -AndroidPreviewSigning:$false
       - name: Upload signed APK
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
